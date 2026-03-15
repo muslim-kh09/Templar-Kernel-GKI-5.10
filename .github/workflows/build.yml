@@ -23,5 +23,5 @@ jobs:
           # تجهيز ملف الإعدادات
           make LLVM=1 LLVM_IAS=1 O=out gki_defconfig
           
-          # بدء البناء الفعلي
-          make LLVM=1 LLVM_IAS=1 O=out -j$(nproc)
+          # بدء البناء الفعلي مع تعطيل LTO
+          make LLVM=1 LLVM_IAS=1 O=out LTO=none -j$(nproc)
