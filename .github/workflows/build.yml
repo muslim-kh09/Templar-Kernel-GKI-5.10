@@ -1,6 +1,6 @@
 name: Simple GKI Build
 on:
-  workflow_dispatch: # يسمح لك بتشغيل البناء يدوياً بضغطة زر
+  workflow_dispatch:
 
 jobs:
   build:
@@ -12,13 +12,16 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc build-essential flex bison libssl-dev libelf-dev clang lld llvm
+          sudo apt-get install -y bc build-essential flex bison libssl-dev libelf-dev clang lld llvm gcc-aarch64-linux-gnu
 
       - name: Basic Compilation Test
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CC=clang
-          make vendor/gki_defconfig
-          make -j$(nproc)
-
+          
+          # تجهيز ملف الإعدادات
+          make LLVM=1 LLVM_IAS=1 O=out gki_defconfig
+          
+          # بدء البناء الفعلي
+          make LLVM=1 LLVM_IAS=1 O=out -j$(nproc)
