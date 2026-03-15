@@ -20,8 +20,11 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CC=clang
           
-          # تجهيز ملف الإعدادات
+          # تجهيز ملف الإعدادات الأساسي
           make LLVM=1 LLVM_IAS=1 O=out gki_defconfig
           
-          # بدء البناء الفعلي مع تعطيل LTO
-          make LLVM=1 LLVM_IAS=1 O=out LTO=none -j$(nproc)
+          # التعديل الجذري: إيقاف LTO تماماً لمنع استهلاك الرامات
+          ./scripts/config --file out/.config -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_NONE
+          
+          # بدء البناء الفعلي
+          make LLVM=1 LLVM_IAS=1 O=out -j$(nproc)
