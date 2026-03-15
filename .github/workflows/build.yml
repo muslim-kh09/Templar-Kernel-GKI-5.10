@@ -1,0 +1,24 @@
+name: Simple GKI Build
+on:
+  workflow_dispatch: # يسمح لك بتشغيل البناء يدوياً بضغطة زر
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc build-essential flex bison libssl-dev libelf-dev clang lld llvm
+
+      - name: Basic Compilation Test
+        run: |
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CC=clang
+          make vendor/gki_defconfig
+          make -j$(nproc)
+
