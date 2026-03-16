@@ -1,4 +1,4 @@
-name: Simple GKI Build
+name: Nethunter GKI Build
 on:
   workflow_dispatch:
 
@@ -6,15 +6,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: The Radical Solution (Add 16GB Swap RAM)
+      - name: Create 16GB Swap (To Prevent OOM Killer)
         run: |
-          # هنا إحنا بنضحك على السيرفر وبنديله 16 جيجا رامات إضافية من مساحة التخزين
           sudo fallocate -l 16G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
-          echo "RAM Memory Info After Swap:"
-          free -h
 
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
@@ -24,17 +21,43 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc build-essential flex bison libssl-dev libelf-dev clang lld llvm gcc-aarch64-linux-gnu
 
-      - name: Basic Compilation Test
+      - name: Build Kernel (Monitor Mode & No LTO)
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           export CC=clang
           
-          # تجهيز الإعدادات
+          # 1. إنشاء ملف الإعدادات الأساسي
           make LLVM=1 LLVM_IAS=1 O=out gki_defconfig
           
-          # إجبار الكيرنل من الجذور على إيقاف LTO
-          ./scripts/config --file out/.config -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_NONE
+          # 2. الحل الجذري لقتل LTO بالقوة من داخل الملف
+          sed -i 's/CONFIG_LTO_CLANG_FULL=y/# CONFIG_LTO_CLANG_FULL is not set/' out/.config
+          sed -i 's/CONFIG_LTO_CLANG_THIN=y/# CONFIG_LTO_CLANG_THIN is not set/' out/.config
+          echo "CONFIG_LTO_NONE=y" >> out/.config
           
-          # الحل الجذري التاني: بدل ما نستخدم كل المعالجات وتضغط الرامات، هنخليها تبني على نواتين بس (-j2)
-          make LLVM=1 LLVM_IAS=1 O=out LTO=none -j2
+          # 3. حقن تعريفات شرائح الشبكة ووضع المراقبة (Nethunter)
+          echo "CONFIG_MAC80211=y" >> out/.config
+          echo "CONFIG_CFG80211=y" >> out/.config
+          echo "CONFIG_CFG80211_WEXT=y" >> out/.config
+          echo "CONFIG_MAC80211_MONITOR=y" >> out/.config
+          echo "CONFIG_WLAN_VENDOR_REALTEK=y" >> out/.config
+          echo "CONFIG_RTL8187=y" >> out/.config
+          echo "CONFIG_RTL8XXXU=y" >> out/.config
+          echo "CONFIG_WLAN_VENDOR_MEDIATEK=y" >> out/.config
+          echo "CONFIG_MT7601U=y" >> out/.config
+          echo "CONFIG_USB_NET_RNDIS_WLAN=y" >> out/.config
+          
+          # 4. تثبيت التعديلات الجديدة
+          make LLVM=1 LLVM_IAS=1 O=out olddefconfig
+          
+          # 5. بدء البناء الفعلي
+          make LLVM=1 LLVM_IAS=1 O=out -j$(nproc)
+
+      - name: Upload Kernel Image
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Nethunter-Kernel-Image
+          path: |
+            out/arch/arm64/boot/Image
+            out/arch/arm64/boot/Image.gz
